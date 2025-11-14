@@ -3,8 +3,7 @@ import numpy as np
 from PIL import Image
 import os
 
-# BASE_DATA_DIR = os.environ["BASE_DATA_DIR"]
-BASE_DATA_DIR = "data2/"
+BASE_DATA_DIR = os.environ["BASE_DATA_DIR"]
 
 MAT_FILE_PATH = BASE_DATA_DIR + "nyu_v2_raw/nyu_depth_v2_labeled.mat"
 OUTPUT_DIR = BASE_DATA_DIR + "nyu_v2_processed"

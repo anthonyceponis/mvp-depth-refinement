@@ -2,6 +2,9 @@
 cd ..
 git clone https://github.com/DepthAnything/Depth-Anything-V2
 cd Depth-Anything-V2
+python3 -m venv env
+source env/bin/activate
+pip install -r requirements.txt
 
 # Fetch depth anything v2 small checkpoint
 mkdir checkpoints

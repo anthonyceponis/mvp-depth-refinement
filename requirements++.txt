@@ -1,5 +1,5 @@
 h5py
-opencv-python
+opencv-python-headless
 tensorboard
 wandb
 scikit-learn

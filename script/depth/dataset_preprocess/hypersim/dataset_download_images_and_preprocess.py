@@ -521,7 +521,43 @@ if args.scenes:
         )
     )
 
+BASE_DATA_DIR = os.environ["BASE_DATA_DIR"]
+
 for url in urls_to_download:
     download(url)
+    filename = url.split("/")[-1][:-4]
+    # Unzip
+    subprocess.run(
+        ["unzip", "-o", f"{BASE_DATA_DIR}/hypersim/{filename}.zip", "-d", filename]
+    )
+    # Create filtered csv
+    subprocess.run(
+        [
+            "python3",
+            "script/depth/dataset_preprocess/hypersim/filter_hypersim_split.py",
+            "--input_csv",
+            "data_split/hypersim_depth/metadata_images_split_scene_v1.csv",
+            "--output_csv",
+            "data_split/hypersim_depth/metadata_images_split_scene_v1_small.csv",
+            "--scenes",
+            filename,
+        ]
+    )
+    # Preprocess
+    subprocess.run(
+        [
+            "python3",
+            "script/depth/dataset_preprocess/hypersim/preprocess_hypersim.py",
+            "--split_csv",
+            "data_split/hypersim_depth/metadata_images_split_scene_v1_small.csv",
+            "--dataset_dir",
+            f"{BASE_DATA_DIR}/hypersim",
+            "--output_dir",
+            f"{BASE_DATA_DIR}/hypersim_processed",
+        ]
+    )
+    # Clean up
+    subprocess.run(["rm", "-rf", f"{BASE_DATA_DIR}/hypersim/{filename}"])
+    subprocess.run(["rm", "-rf", f"{BASE_DATA_DIR}/hypersim/{filename}.zip"])
 
 print("[HYPERSIM: DATASET_DOWNLOAD_IMAGES] Finished.")
