@@ -1,7 +1,7 @@
 #!/bin/bash
 
 cd Depth-Anything
-source env/bin/anything
+source env/bin/activate
 
 BASE_HYPERSIM_DATASET_DIR=../data/hypersim_processed
 
