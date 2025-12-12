@@ -3,17 +3,18 @@
 ### Setup and visualizing outputs
 
 ```bash
-source ./setup.sh
-source ./script/data_fetch/data-fetch-small.sh
-source ./script/data_fetch/construct_lists.sh
+source ./setup.sh # installs dependencies for repo and submodules
+source ./script/data_fetch/data-fetch-small.sh # use data-fetch.sh for the full datasets
+source ./script/data_fetch/construct_lists.sh # constructs data split txt files for train/val/test for each dataset.
 ```
 
-Run this to infer the internal version of the models on some demo images
-```bash
-for base_model in  "unidepth" "pixel_perfect_depth" "depth_anything_small"; do 
-  python -m ppd_sharpdepth.infer --checkpoint submodules/SharpDepth/checkpoints/sharpdepth --output_dir /tmp/sharpdepth_out_viz/ --input_dir submodules/SharpDepth/assets/in-the-wild_example --base_model $base_model
-done
-```
+### Inference
+
+All models are abstracted into a single function in `ppd_sharpdepth/depth_estimators.py`. Examples of running inference on a dataset can be found in `infer.sh`. Model outputs are dumped into the `preds` directory. Note that the model_architecture must match an enum string from the ModelArchitecture Enum in `ppd_sharpdetph/depth_estimators.py`
+
+### Evaluation
+
+See `eval.sh` for examples of how to run inference for a given dataset.
 
 Run this to infer the external version of the models on big datasets.
 
