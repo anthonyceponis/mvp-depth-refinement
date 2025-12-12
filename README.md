@@ -1,6 +1,6 @@
 # MVP-DEPTH-ESTIMATION-WITH-REFINEMENT
 
-### Setup and visualizing outputs
+## Setup 
 
 ```bash
 source ./setup.sh # installs dependencies for repo and submodules
@@ -8,15 +8,15 @@ source ./script/data_fetch/data-fetch-small.sh # use data-fetch.sh for the full 
 source ./script/data_fetch/construct_lists.sh # constructs data split txt files for train/val/test for each dataset.
 ```
 
-### Inference
+## Inference
 
 All models are abstracted into a single function in `ppd_sharpdepth/depth_estimators.py`. Examples of running inference on a dataset can be found in `infer.sh`. Model outputs are dumped into the `preds` directory. Note that the model_architecture must match an enum string from the ModelArchitecture Enum in `ppd_sharpdetph/depth_estimators.py`
 
-### Evaluation
+## Evaluation
 
 See `eval.sh` for examples for how to run inference for a given dataset.
 
-### Results
+## Results
 
 ### AbsRel (↓)
 | Model         | Hypersim              | NYU_V2               | Middlebury           |
