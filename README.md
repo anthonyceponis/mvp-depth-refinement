@@ -14,34 +14,31 @@ All models are abstracted into a single function in `ppd_sharpdepth/depth_estima
 
 ### Evaluation
 
-See `eval.sh` for examples of how to run inference for a given dataset.
+See `eval.sh` for examples for how to run inference for a given dataset.
 
-Run this to infer the external version of the models on big datasets.
+### Results
 
-```bash
-source ./script/external_models/run-depth-anything.sh
-source ./script/external_models/run-depth-v2.sh
-source ./script/external_models/run-ppd.sh
-source ./script/external_models/run-sharpdepth.sh
-```
+### AbsRel (↓)
+| Model         | Hypersim              | NYU_V2               | Middlebury           |
+|---------------|------------------------|-----------------------|------------------------|
+| PatchRefiner  | 0.30669 ± 0.00293      | 0.09342 ± 0.00189     | 0.51261 ± 0.04751      |
+| UniDepth      | **0.27689 ± 0.00404**  | **0.03279 ± 0.00062** | 0.36489 ± 0.05073      |
+| ZoeDepth      | 0.29943 ± 0.00307      | 0.07851 ± 0.00132     | 0.47667 ± 0.04379      |
+| PPD           | 0.26254 ± 0.00390      | 0.04255 ± 0.00078     | **0.36338 ± 0.04827**  |
 
+### RMSE (↓)
+| Model         | Hypersim               | NYU_V2               | Middlebury            |
+|---------------|-------------------------|------------------------|-------------------------|
+| PatchRefiner  | 3.73567 ± 0.07466       | 0.53587 ± 0.01508      | 3.72882 ± 0.56979       |
+| UniDepth      | **2.79119 ± 0.06606**   | **0.18179 ± 0.00355**  | **2.97287 ± 0.52747**   |
+| ZoeDepth      | 3.84611 ± 0.09186       | 0.35155 ± 0.00682      | 3.44307 ± 0.53880       |
+| PPD           | 2.60784 ± 0.06402       | 0.23881 ± 0.00503      | 2.92093 ± 0.51323       |
 
-### Docker container setup
+### PPDE (↓)
+| Model        | Hypersim                |
+|--------------|---------------------------|
+| PatchRefiner | 470.32833 ± 13.10757      |
+| UniDepth     | 453.41075 ± 10.93894      |
+| ZoeDepth     | 888.25730 ± 23.20731      |
+| PPD          | **426.98652 ± 10.27428**  |
 
-First, make sure you have a docker hub account and have docker cli installed.
-
-Then, login into docker in the cli using `sudo docker login --u <username>`
-
-Build a image using `sudo docker build -t <docker_username>/<image_name>:latest .` in the project root directory (don't forget the dot at the end!).
-
-Verify the image is built and on your system using `sudo docker images`
-
-Push image to docker hub using `sudo docker push <docker_username>/<image_name>:latest`
-
-
-### Inference with PatchRefiner
-
-This is a hard-coded temporary fix for running inference on PatchRefiner:
-After setting up using `source ./setup.sh`, replace `env/lib/python3.13/site-packages/mmengine/registry/registry.py` with `ppd_sharpdepth/patchrefiner/hardcode_changes/registry.py`.
-
-Sometimes, you may reach a RuntimeError stating there is an error in `loading state_dict for DPTDepthModel` and there are `Unexpected key(s) in state_dict` (all ending in `relative_position_index`). If this occurs, please ensure that the `timm` version is `0.9.2`, since newer versions will not match the `state_dict` keys correctly.
