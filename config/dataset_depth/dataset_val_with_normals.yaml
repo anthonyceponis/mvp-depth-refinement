@@ -1,0 +1,54 @@
+dataset:
+  val:
+  # - name: hypersim_depth
+  #   disp_name: hypersim_depth_val
+  #   dir: hypersim_processed/val
+  #   filenames: hypersim_processed/val/filename_list_val.txt
+  #   resize_to_hw:
+  #   - 480
+  #   - 640
+
+  - name: nyu_v2
+    disp_name: nyu_depth_val_full
+    dir: nyu_v2_processed/
+    filenames: data_split/nyu_depth/labeled/filename_list_test.txt
+    eigen_valid_mask: true
+
+  - name: hypersim
+    disp_name: hypersim
+    dir: hypersim_processed/val/
+    filenames: data_split/hypersim_depth/hypersim_val_filename_list.txt
+    resize_to_hw:
+    - 480
+    - 640 
+
+  # - name: kitti
+  #   disp_name: kitti_depth
+  #   dir: kitti_raw
+  #   filenames: data_split/kitti_depth/eigen_test_files_with_gt_filtered.txt
+  #   kitti_bm_crop: false
+  #   valid_mask_crop: eigen
+
+
+  # # Smaller subsets for faster validation during training
+  # # The first dataset is used to calculate main eval metric.
+  # - name: hypersim_depth
+  #   disp_name: hypersim_depth_val_small_80
+  #   dir: hypersim_processed/val
+  #   filenames: data/hypersim_processed/val/filename_list_val.txt 
+  #   resize_to_hw:
+  #   - 480
+  #   - 640
+
+  # - name: nyu_depth
+  #   disp_name: nyu_depth_train_small_100
+  #   dir: nyuv2/nyu_labeled_extracted.tar
+  #   filenames: data_split/nyu_depth/labeled/filename_list_train_small_100.txt
+  #   eigen_valid_mask: true
+
+  # - name: kitti_depth
+  #   disp_name: kitti_depth_val_from_train_sub_100
+  #   dir: kitti/kitti_sampled_val_800.tar
+  #   filenames: data_split/kitti_depth/eigen_val_from_train_sub_100.txt
+  #   kitti_bm_crop: true
+  #   valid_mask_crop: eigen

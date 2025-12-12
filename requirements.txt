@@ -12,7 +12,8 @@ vastai
 einops
 pypng
 xformers
-timm==0.6.7
+# timm==0.6.7
+timm==0.9.2
 ema-pytorch
 debugpy
 pyarrow

@@ -8,7 +8,7 @@ __pycache__
 /train_output*
 /checkpoints
 /wandb
-/ppd_sharpdepth/patchrefiner/checkpoints/work_dir
-/ppd_sharpdepth/patchrefiner/checkpoints/download.zip
+/ppd_sharpdepth/patchrefiner/checkpoints
+/ppd_sharpdepth/patchrefiner/checkpoints
 nohup.out
 wget-log*

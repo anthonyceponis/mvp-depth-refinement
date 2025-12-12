@@ -60,23 +60,28 @@ class HypersimDataset(BaseDepthDataset):
             scene_intrisincs["M_proj_12"],
         )
         intrinsics = torch.tensor([[fx, 0, cx], [0, fy, cy], [0, 0, 1]]).float()
+
+        # Depth data
+        if DatasetMode.RGB_ONLY != self.mode:
+            # load data
+            depth_data = self._load_depth_data(
+                depth_rel_path=depth_rel_path, filled_rel_path=filled_rel_path
+            )
+            rasters.update(depth_data)
+ 
+            # valid mask
+            rasters["valid_mask_raw"] = self._get_valid_mask(
+                rasters["depth_raw_linear"]
+            ).clone()
+            rasters["valid_mask_filled"] = self._get_valid_mask(
+                rasters["depth_filled_linear"]
+            ).clone()
+
         other = {
             "index": index,
             "rgb_relative_path": rgb_rel_path,
             "disp_name": self.disp_name,
             "intrinsics": intrinsics,
         }
-
-        # parts = rgb_rel_path.split("/")
-        # cam_p = parts[-1][-5]
-        # intrinsics_path = os.path.join(self.dataset_dir, parts[0], "intrinsics", cam_p + '.txt')
-        # intrinsic = np.loadtxt(intrinsics_path)
-        # fx, fy, cx, cy = intrinsic[0], intrinsic[1], intrinsic[2], intrinsic[3]
-
-        # intrinsics = torch.tensor([[fx, 0, cx],
-        #                            [0, fy, cy],
-        #                            [0,0,1]]).float()
-        # other = {"index": index, "rgb_relative_path": rgb_rel_path, 'disp_name': self.disp_name, 'intrinsics': intrinsics}
-        other = {"index": index, "rgb_relative_path": rgb_rel_path, "disp_name": self.disp_name}
-
+ 
         return rasters, other
