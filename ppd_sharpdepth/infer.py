@@ -48,7 +48,7 @@ if "__main__" == __name__:
         help="Run with half-precision (16-bit float), might lead to suboptimal result.",
     )
     parser.add_argument("--subset_size", type=int, default=None, help="Subset size.")
-    parser.add_argument("--run_name", type=str, default=None, help="Run name (determines the output directory).")
+    parser.add_argument("--model_name", type=str, default=None, help="Run name (determines the output directory).")
     parser.add_argument("--debug", action="store_true", help="Debug mode.")
     parser.add_argument("--make_point_cloud", action="store_true", help="Make point cloud.")
     #parser.add_argument("--input_dir", type=str, required=True, help="Input image dataset directory")
@@ -95,7 +95,7 @@ if "__main__" == __name__:
 
     input_dir = BASE_DATA_DIR / cfg_data.dir
 
-    run_name = args.run_name if args.run_name else model_architecture.value
+    run_name = args.model_name if args.model_name else model_architecture.value
 
     output_dir = BASE_PREDS_DIR / cfg_data.dir / run_name
 
@@ -108,7 +108,7 @@ if "__main__" == __name__:
     if args.subset_size is not None:
         import random
         random.seed(42)  # Fixed seed for reproducibility between infer and eval
-        idxes = random.sample(range(len(dataset)), args.subset_size)
+        idxes = random.sample(range(len(dataset)), min(args.subset_size, len(dataset)))
         from torch.utils.data import Subset
         dataset = Subset(dataset, idxes)
 

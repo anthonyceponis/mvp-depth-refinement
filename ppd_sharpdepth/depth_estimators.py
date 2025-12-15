@@ -9,6 +9,7 @@ import os
 from mmengine.config import Config
 import gc
 
+from ppd_sharpdepth.ppd.models.dit import ControlNetDiT
 from diffusers import UNet2DConditionModel
 from ppd_sharpdepth.sharpdepth.util.alignment import align_depth_least_square
 from unidepth.models import UniDepthV1
@@ -63,16 +64,19 @@ ModelArchitecture = Enum(
         lambda model_name: (model_name, model_name),
         [
             "sharpdepth_lotus_unidepth",
-            "sharpdepth_lotus_depthanythingsmall",
-            "sharpdepth_lotus_pixelperfectdepth",
+            "sharpdepth_lotus_zoedepth",
             "sharpdepth_ppd_unidepth",
             "depthanythingsmall",
             "depthanythinglarge",
-            "pixelperfectdepth",
+            "pixelperfectdepth_unidepth",
+            "pixelperfectdepth_zoedepth",
             "unidepth",
             "patchrefiner",
             "zoedepth",
-            #"lotus",
+            "sharpdepth_ppd_controlnet_zoedepth",
+            "sharpdepth_ppd_controlnet_unidepth",
+            "sharpdepth_ppd_timestep_500_unidepth",
+            "sharpdepth_ppd_timestep_500_zoedepth",
         ]
     )
 )
@@ -87,8 +91,7 @@ def get_depth_estimator_fn(
     match model_architecture:
         case (
             ModelArchitecture.sharpdepth_lotus_unidepth 
-            | ModelArchitecture.sharpdepth_lotus_depthanythingsmall
-            | ModelArchitecture.sharpdepth_lotus_pixelperfectdepth
+            | ModelArchitecture.sharpdepth_lotus_zoedepth
         ):
             match model_architecture:
                 case ModelArchitecture.sharpdepth_lotus_unidepth:
@@ -99,21 +102,13 @@ def get_depth_estimator_fn(
                         float_dtype, 
                         BASE_MODEL_CHECKPOINT_DIR
                     )
-                case ModelArchitecture.sharpdepth_lotus_depthanythingsmall:
+                case ModelArchitecture.sharpdepth_lotus_zoedepth:
                     BASE_MODEL_CHECKPOINT_DIR = "LiheYoung/depth_anything_vits14"
                     base_depth_estimator_fn = get_depth_estimator_fn(
-                        ModelArchitecture.depthanythingsmall, 
+                        ModelArchitecture.zoedepth, 
                         device, 
                         float_dtype, 
-                        BASE_MODEL_CHECKPOINT_DIR
-                    )
-                case ModelArchitecture.sharpdepth_lotus_pixelperfectdepth:
-                    BASE_MODEL_CHECKPOINT_DIR = "andrew-healey/sharpdepth"
-                    base_depth_estimator_fn = get_depth_estimator_fn(
-                        ModelArchitecture.pixelperfectdepth, 
-                        device, 
-                        float_dtype, 
-                        BASE_MODEL_CHECKPOINT_DIR
+                        "isl-org/ZoeDepth"
                     )
 
             pipeline = SharpDepthPipeline.from_pretrained(
@@ -122,6 +117,7 @@ def get_depth_estimator_fn(
                 base_depth_estimator_fn=base_depth_estimator_fn,
                 default_processing_resolution=768, 
                 default_denoising_steps=1,
+                align_depth_least_square=True,
              )
             assert pipeline.default_processing_resolution == 768, f"default_processing_resolution = {pipeline.default_processing_resolution}, expected 768"
             assert pipeline.default_denoising_steps == 1, f"default_denoising_steps = {pipeline.default_denoising_steps}, expected 1"
@@ -132,50 +128,70 @@ def get_depth_estimator_fn(
             def depth_estimator_fn(rgb_int_1chw: torch.Tensor, preprocessor: Type[PreProcessor], internal=False):
                 out = pipeline(rgb_int_1chw)
 
-                #out.depth_base_colored.save(os.path.join(output_dir, batch.split(".")[0] + f"_{args.base_model}.jpg"))
-                #out.depth_colored.save(os.path.join(output_dir, batch.split(".")[0] + f"_{args.base_model}_sharpdepth.png"))
-
-
-
                 h, w = out.depth_np.shape
                 ret_11hw = torch.from_numpy(out.depth_np.reshape(1, 1, h, w))
                 
                 return ret_11hw
 
-        case ModelArchitecture.sharpdepth_ppd_unidepth:
+        case (
+            ModelArchitecture.sharpdepth_ppd_unidepth 
+            | ModelArchitecture.sharpdepth_ppd_timestep_500_unidepth 
+            | ModelArchitecture.sharpdepth_ppd_timestep_500_zoedepth
+        ):
+
+            initialize_ppd_from_timestep = 500 if model_architecture in [
+                ModelArchitecture.sharpdepth_ppd_timestep_500_unidepth,
+                ModelArchitecture.sharpdepth_ppd_timestep_500_zoedepth,
+            ] else None
+
+            default_denoising_steps = 2 if model_architecture in [
+                ModelArchitecture.sharpdepth_ppd_timestep_500_unidepth,
+                ModelArchitecture.sharpdepth_ppd_timestep_500_zoedepth,
+            ] else 4
 
             #with torch.autocast(device_type="cuda", dtype=torch.bfloat16): 
-            UNIDEPTH_CHECKPOINT_DIR="lpiccinelli/unidepth-v1-vitl14"
-            base_depth_estimator_fn = get_depth_estimator_fn(
-                ModelArchitecture.unidepth, 
-                device, 
-                float_dtype, 
-                UNIDEPTH_CHECKPOINT_DIR
-            )
 
-            frozen_unet = PixelPerfectDepth.from_pretrained("andrew-healey/sharpdepth", subfolder="ppd", revision="blurred")
+            if model_architecture in [ModelArchitecture.sharpdepth_ppd_unidepth, ModelArchitecture.sharpdepth_ppd_timestep_500_unidepth]:
+                base_depth_estimator_fn = get_depth_estimator_fn(
+                    ModelArchitecture.unidepth, 
+                    device, 
+                    float_dtype, 
+                    "lpiccinelli/unidepth-v1-vitl14"
+                )
+            elif model_architecture in [ModelArchitecture.sharpdepth_ppd_timestep_500_zoedepth]:
+                base_depth_estimator_fn = get_depth_estimator_fn(
+                    ModelArchitecture.zoedepth, 
+                    device, 
+                    float_dtype, 
+                    "isl-org/ZoeDepth"
+                )
+            else:
+                raise ValueError(f"Unknown model architecture: {model_architecture}")
+
+
+            frozen_unet = PixelPerfectDepth.from_pretrained("andrew-healey/sharpdepth", subfolder="ppd", revision="main")
             frozen_unet = frozen_unet.to(device, dtype=float_dtype).eval()
             frozen_unet.requires_grad_(False)
 
-            student_unet = PixelPerfectDepth.from_pretrained("andrew-healey/sharpdepth", subfolder="ppd_student", revision="blurred")
+            student_unet = PixelPerfectDepth.from_pretrained(checkpoint_filepath, subfolder="ppd_student")
             student_unet = student_unet.to(device, dtype=float_dtype).eval()
             student_unet.requires_grad_(False)
 
             pipeline = SharpDepthPipeline.from_pretrained(
-                checkpoint_filepath, 
+                "andrew-healey/sharpdepth", 
                 sharpdepth_kind=SharpDepthKind.PIXEL_PERFECT_DEPTH, 
                 base_depth_estimator_fn=base_depth_estimator_fn,
                 default_processing_resolution=768, 
-                default_denoising_steps=1,
+                default_denoising_steps=default_denoising_steps,
                 frozen_unet=frozen_unet,
                 unet=student_unet,
-                blur_difference_map_scale_factor=1, 
+                blur_difference_map_scale_factor=32, 
                 noise_aware_latent_noise_scale=0,
-                use_conditioning_for_initial_ppd=False,
-                initialize_ppd_from_timestep=249,
+                use_conditioning_for_initial_ppd=True,
+                initialize_ppd_from_timestep=initialize_ppd_from_timestep,
             )
             assert pipeline.default_processing_resolution == 768, f"default_processing_resolution = {pipeline.default_processing_resolution}, expected 768"
-            assert pipeline.default_denoising_steps == 1, f"default_denoising_steps = {pipeline.default_denoising_steps}, expected 1"
+            # assert pipeline.default_denoising_steps == default_denoising_steps, f"default_denoising_steps = {pipeline.default_denoising_steps}, expected {default_denoising_steps}"
 
             pipeline = pipeline.to(device, dtype=float_dtype)
 
@@ -188,6 +204,66 @@ def get_depth_estimator_fn(
                 ret_11hw = torch.from_numpy(out.depth_np.reshape(1, 1, h, w))
                 
                 return ret_11hw
+
+        case (
+            ModelArchitecture.sharpdepth_ppd_controlnet_zoedepth
+            | ModelArchitecture.sharpdepth_ppd_controlnet_unidepth
+        ):
+
+            if model_architecture == ModelArchitecture.sharpdepth_ppd_controlnet_unidepth:
+                base_depth_estimator_fn = get_depth_estimator_fn(
+                    ModelArchitecture.unidepth, 
+                    device, 
+                    float_dtype, 
+                    "lpiccinelli/unidepth-v1-vitl14"
+                )
+            elif model_architecture == ModelArchitecture.sharpdepth_ppd_controlnet_zoedepth:
+                base_depth_estimator_fn = get_depth_estimator_fn(
+                    ModelArchitecture.zoedepth, 
+                    device, 
+                    float_dtype, 
+                    "isl-org/ZoeDepth"
+                )
+            else:
+                raise ValueError(f"Unknown model architecture: {model_architecture}")
+
+
+            frozen_unet = PixelPerfectDepth.from_pretrained("andrew-healey/sharpdepth", subfolder="ppd", revision="main")
+            frozen_unet = frozen_unet.to(device, dtype=float_dtype).eval()
+            frozen_unet.requires_grad_(False)
+
+            student_unet = PixelPerfectDepth.from_pretrained(checkpoint_filepath, subfolder="ppd_student_controlnet")
+            student_unet = student_unet.to(device, dtype=float_dtype).eval()
+            student_unet.requires_grad_(False)
+
+            pipeline = SharpDepthPipeline.from_pretrained(
+                "andrew-healey/sharpdepth", 
+                sharpdepth_kind=SharpDepthKind.PIXEL_PERFECT_DEPTH_CONTROLNET, 
+                base_depth_estimator_fn=base_depth_estimator_fn,
+                default_processing_resolution=768, 
+                default_denoising_steps=4,
+                frozen_unet=frozen_unet,
+                unet=student_unet,
+                blur_difference_map_scale_factor=64, 
+                noise_aware_latent_noise_scale=0,
+                use_conditioning_for_initial_ppd=False,
+                initialize_ppd_from_timestep=None,
+            )
+            assert pipeline.default_processing_resolution == 768, f"default_processing_resolution = {pipeline.default_processing_resolution}, expected 768"
+            assert pipeline.default_denoising_steps == 4, f"default_denoising_steps = {pipeline.default_denoising_steps}, expected 4"
+
+            pipeline = pipeline.to(device, dtype=float_dtype)
+
+            @torch.autocast(device_type=device.type, dtype=float_dtype)
+            def depth_estimator_fn(rgb_int_1chw: torch.Tensor, preprocessor: Type[PreProcessor], internal=False):
+                #with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                out = pipeline(rgb_int_1chw)
+
+                h, w = out.depth_np.shape
+                ret_11hw = torch.from_numpy(out.depth_np.reshape(1, 1, h, w))
+                
+                return ret_11hw
+
 
         case ModelArchitecture.unidepth:
 
@@ -307,7 +383,10 @@ def get_depth_estimator_fn(
                 # print(f"Resized output from depth_anything. shape: {disparity_raw_1hw.shape}, std: {disparity_raw_1hw.std()}, mean: {disparity_raw_1hw.mean()}, dtype: {disparity_raw_1hw.dtype}")
                 # raise NotImplementedError("Depth Anything is not implemented yet")
 
-        case ModelArchitecture.pixelperfectdepth: 
+        case (
+            ModelArchitecture.pixelperfectdepth_unidepth
+            | ModelArchitecture.pixelperfectdepth_zoedepth
+        ): 
 
             #DEPTH_ANYTHING_SMALL_CHECKPOINT_DIR="LiheYoung/depth_anything_vits14"
             #depth_anything_small_fn = get_depth_estimator_fn(
@@ -317,13 +396,20 @@ def get_depth_estimator_fn(
             #    DEPTH_ANYTHING_SMALL_CHECKPOINT_DIR
             #)
 
-            UNIDEPTH_CHECKPOINT_DIR="lpiccinelli/unidepth-v1-vitl14"
-            unidepth_fn = get_depth_estimator_fn(
-                ModelArchitecture.unidepth,
-                device,
-                float_dtype,
-                UNIDEPTH_CHECKPOINT_DIR
-            )
+            if model_architecture == ModelArchitecture.pixelperfectdepth_unidepth:
+                base_depth_estimator_fn = get_depth_estimator_fn(
+                    ModelArchitecture.unidepth,
+                    device,
+                    float_dtype,
+                    "lpiccinelli/unidepth-v1-vitl14"
+                )
+            else:
+                base_depth_estimator_fn = get_depth_estimator_fn(
+                    ModelArchitecture.zoedepth,
+                    device,
+                    float_dtype,
+                    "isl-org/ZoeDepth"
+                )
 
 
             model = PixelPerfectDepth.from_pretrained(
@@ -341,7 +427,7 @@ def get_depth_estimator_fn(
 
                 #metric_depth_base = depth_anything_small_fn(rgb_int_1chw, preprocessor, internal=True)
                 #metric_depth_base = unidepth_fn(rgb_int_1chw, MarigoldPreProcessor, internal=True)
-                metric_depth_base = unidepth_fn(rgb_int_1chw, preprocessor, internal=True)
+                metric_depth_base = base_depth_estimator_fn(rgb_int_1chw, preprocessor, internal=True)
 
                 H, W = rgb_float_1chw_resized.squeeze(0).shape[1:3]
                 raw_image_hwc = (

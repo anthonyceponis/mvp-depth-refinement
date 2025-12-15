@@ -47,6 +47,7 @@ if __name__ == "__main__":
     parser.add_argument("--subset_size", type=int, default=None, help="Subset size.")
     parser.add_argument("--run_message", type=str, default=None, help="Message for this eval run. If not provided, will prompt interactively.")
     parser.add_argument("--debug", action="store_true", help="Print per-image metrics for debugging/comparison.")
+    parser.add_argument("--model_name", type=str, default=None, help="Model name (determines the output directory).")
     args = parser.parse_args()
 
     dataset_config_path = args.dataset_config_path
@@ -67,7 +68,7 @@ if __name__ == "__main__":
     if args.subset_size is not None:
         import random
         random.seed(42)  # Fixed seed for reproducibility between infer and eval
-        idxes = random.sample(range(len(dataset)), args.subset_size)
+        idxes = random.sample(range(len(dataset)), min(args.subset_size, len(dataset)))
         from torch.utils.data import Subset
         dataset = Subset(dataset, idxes)
 
@@ -90,7 +91,9 @@ if __name__ == "__main__":
         depth_raw = depth_raw_ts.numpy()
         valid_mask = valid_mask_ts.numpy()
 
-        pred_path = BASE_PREDS_DIR / cfg_data.dir / model_architecture.value / (rgb_name + ".npy")
+        model_name = args.model_name if args.model_name else model_architecture.value
+
+        pred_path = BASE_PREDS_DIR / cfg_data.dir / model_name / (rgb_name + ".npy")
         depth_pred = np.load(str(pred_path)).astype(np.float32)
         
         depth_pred = np.squeeze(depth_pred)
@@ -110,7 +113,7 @@ if __name__ == "__main__":
         
         if debug:
             ppde_str = f"{ppd_score:.4f}" if ppd_score is not None and ppd_score > 0 else ""
-            print(f"model={model_architecture.value}, image={rgb_name}, abs_rel={img_abs_rel:.4f}, rmse={img_rmse:.4f}, ppde={ppde_str}")
+            print(f"model={model_name}, image={rgb_name}, abs_rel={img_abs_rel:.4f}, rmse={img_rmse:.4f}, ppde={ppde_str}")
         
         # DEBUG NORMAL MAPS VIA VISUALISATION.
         #predicted_edge_path = BASE_PREDS_DIR / cfg_data.dir / model_architecture.value / (rgb_name + "_pred_edges.png")
@@ -149,7 +152,7 @@ if __name__ == "__main__":
         ppd_ci = (None, None)
     
     df = pd.read_csv(results_filepath)
-    
+
     for col in ["abs_rel_std_err", "rmse_std_err", "ppd_std_err"]:
         if col not in df.columns:
             df[col] = None
