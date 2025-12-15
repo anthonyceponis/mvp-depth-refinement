@@ -7,6 +7,9 @@ import os
 from pathlib import Path
 from omegaconf import OmegaConf
 
+from ppd_sharpdepth.ppd.utils.depth2pcd import depth2pcd
+import open3d as o3d
+
 os.environ["XFORMERS_DISABLED"] = "1"
 
 import matplotlib.pyplot as plt
@@ -44,10 +47,20 @@ if "__main__" == __name__:
         action="store_true",
         help="Run with half-precision (16-bit float), might lead to suboptimal result.",
     )
+    parser.add_argument("--subset_size", type=int, default=None, help="Subset size.")
+    parser.add_argument("--run_name", type=str, default=None, help="Run name (determines the output directory).")
+    parser.add_argument("--debug", action="store_true", help="Debug mode.")
+    parser.add_argument("--make_point_cloud", action="store_true", help="Make point cloud.")
     #parser.add_argument("--input_dir", type=str, required=True, help="Input image dataset directory")
     #parser.add_argument("--output_dir", type=str, required=True, help="Output depth dataset directory.") 
 
     args = parser.parse_args()
+
+    if args.debug:
+        debugpy.listen(5678)
+        print("Waiting for debugger to attach...")
+        debugpy.wait_for_client()
+        print("Debugger attached")
 
     checkpoint_path = args.checkpoint
     dataset_config_path = args.dataset_config_path
@@ -75,24 +88,30 @@ if "__main__" == __name__:
         dtype = torch.float32
         variant = None
 
-    with open(cfg_data.filenames, "r") as f:
-        lines = [line.strip() for line in f.readlines()]
-        imgs = [line.split(" ")[0] for line in lines]
-        depths = [line.split(" ")[1] for line in lines]
-
     model_infer_fn = get_depth_estimator_fn(model_architecture, device, dtype, checkpoint_path)
     
     BASE_DATA_DIR = Path(os.environ["BASE_DATA_DIR"])
     BASE_PREDS_DIR = Path(os.environ["BASE_PREDS_DIR"])
 
     input_dir = BASE_DATA_DIR / cfg_data.dir
-    output_dir = BASE_PREDS_DIR / cfg_data.dir / model_architecture.value
+
+    run_name = args.run_name if args.run_name else model_architecture.value
+
+    output_dir = BASE_PREDS_DIR / cfg_data.dir / run_name
 
     color_map = "inferno_r"
 
     dataset = get_dataset(
         cfg_data, base_data_dir=BASE_DATA_DIR, mode=DatasetMode.EVAL
     )
+
+    if args.subset_size is not None:
+        import random
+        random.seed(42)  # Fixed seed for reproducibility between infer and eval
+        idxes = random.sample(range(len(dataset)), args.subset_size)
+        from torch.utils.data import Subset
+        dataset = Subset(dataset, idxes)
+
     dataloader = DataLoader(dataset, batch_size=1, num_workers=0)
 
     for data in tqdm(dataloader, desc="Inferring"):
@@ -105,7 +124,8 @@ if "__main__" == __name__:
         depth_raw = depth_raw_ts.numpy()
         valid_mask = valid_mask_ts.numpy()
 
-        depth_np_11hw = model_infer_fn(rgb_raw_11chw, MarigoldPreProcessor)
+        with torch.no_grad():
+            depth_np_11hw = model_infer_fn(rgb_raw_11chw, MarigoldPreProcessor)
         depth_np_11hw = depth_np_11hw.cpu().numpy()
         save_path = output_dir / rgb_name
         os.makedirs(save_path.parent, exist_ok=True)
@@ -113,6 +133,24 @@ if "__main__" == __name__:
  
         depth_np_11hw = np.squeeze(depth_np_11hw)
 
+        if args.make_point_cloud:
+            assert "intrinsics" in data, "intrinsics must be in data"
+            intrinsic = data["intrinsics"].numpy().copy().squeeze()
+            H, W = depth_np_11hw.shape[-2:]
+
+            intrinsic[0, 0] *= W 
+            intrinsic[1, 1] *= H
+            intrinsic[0, 2] *= W
+            intrinsic[1, 2] *= H
+
+            rgb_raw_hwc = rgb_raw_11chw.squeeze(0).permute(1,2,0).cpu().numpy()
+
+            pred_pcd = depth2pcd(depth_np_11hw.squeeze().squeeze(), intrinsic, color=rgb_raw_hwc, ret_pcd=True)
+            o3d.io.write_point_cloud(save_path.parent / f"{save_path.stem}_pred_point_cloud.ply", pred_pcd)
+
+            gt_pcd = depth2pcd(depth_raw.squeeze().squeeze(), intrinsic, color=rgb_raw_hwc, input_mask=valid_mask, ret_pcd=True)
+            o3d.io.write_point_cloud(save_path.parent / f"{save_path.stem}_gt_point_cloud.ply", gt_pcd)
+        
         depth_np_11hw_valid = depth_np_11hw * valid_mask
         depth_raw_valid = depth_raw * valid_mask
 
@@ -121,6 +159,7 @@ if "__main__" == __name__:
             "label_raw": depth_raw,
             "pred_valid": depth_np_11hw_valid,
             "label_valid": depth_raw_valid,
+            "diff": np.abs(depth_np_11hw_valid - depth_raw_valid)
         }
 
         # Generate and save color maps.

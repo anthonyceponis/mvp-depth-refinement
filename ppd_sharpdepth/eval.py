@@ -44,12 +44,15 @@ if __name__ == "__main__":
 
     parser.add_argument("--dataset_config_path", type=str, required=True, help="Path of the dataset config yaml file.")
     parser.add_argument("--model_architecture", type=str, required=True, help="Model.")
-
+    parser.add_argument("--subset_size", type=int, default=None, help="Subset size.")
+    parser.add_argument("--run_message", type=str, default=None, help="Message for this eval run. If not provided, will prompt interactively.")
+    parser.add_argument("--debug", action="store_true", help="Print per-image metrics for debugging/comparison.")
     args = parser.parse_args()
 
     dataset_config_path = args.dataset_config_path
     model_architecture = ModelArchitecture(args.model_architecture)
-    run_message = input("Give a message for this eval run: ")
+    run_message = args.run_message if args.run_message else input("Give a message for this eval run: ")
+    debug = args.debug
     
     BASE_DATA_DIR = Path(os.environ["BASE_DATA_DIR"])
     BASE_PREDS_DIR = Path(os.environ["BASE_PREDS_DIR"])
@@ -60,6 +63,13 @@ if __name__ == "__main__":
     dataset = get_dataset(
         cfg_data, base_data_dir=BASE_DATA_DIR, mode=DatasetMode.EVAL
     )
+
+    if args.subset_size is not None:
+        import random
+        random.seed(42)  # Fixed seed for reproducibility between infer and eval
+        idxes = random.sample(range(len(dataset)), args.subset_size)
+        from torch.utils.data import Subset
+        dataset = Subset(dataset, idxes)
 
     dataloader = DataLoader(dataset, batch_size=1, num_workers=0)
     model_architecture = ModelArchitecture(model_architecture) 
@@ -85,15 +95,22 @@ if __name__ == "__main__":
         
         depth_pred = np.squeeze(depth_pred)
         
-        abs_rel_values.append(abs_rel(depth_pred, depth_raw, valid_mask))
-        rmse_values.append(rmse(depth_pred, depth_raw, valid_mask))
+        img_abs_rel = abs_rel(depth_pred, depth_raw, valid_mask)
+        img_rmse = rmse(depth_pred, depth_raw, valid_mask)
+        abs_rel_values.append(img_abs_rel)
+        rmse_values.append(img_rmse)
         
+        ppd_score = None
         if with_edge_metric:
             intrinsics_ts = data["intrinsics"].squeeze()
             intrinsics = intrinsics_ts.numpy()
             ppd_score = ppd_metric(depth_pred, depth_raw, intrinsics)
             if ppd_score > 0:
                 ppd_values.append(ppd_score)
+        
+        if debug:
+            ppde_str = f"{ppd_score:.4f}" if ppd_score is not None and ppd_score > 0 else ""
+            print(f"model={model_architecture.value}, image={rgb_name}, abs_rel={img_abs_rel:.4f}, rmse={img_rmse:.4f}, ppde={ppde_str}")
         
         # DEBUG NORMAL MAPS VIA VISUALISATION.
         #predicted_edge_path = BASE_PREDS_DIR / cfg_data.dir / model_architecture.value / (rgb_name + "_pred_edges.png")
@@ -102,6 +119,7 @@ if __name__ == "__main__":
         #save_numpy_bitmap_as_png(ground_edges, str(ground_edge_path))
         #save_numpy_bitmap_as_png(predicted_edges, str(predicted_edge_path))
 
+    print("Total number of samples evaluated on: ", len(abs_rel_values))
 
     gitname = subprocess.check_output(["git", "config", "user.name"]).decode().strip()
     

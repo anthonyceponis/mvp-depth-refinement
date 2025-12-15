@@ -30,7 +30,7 @@
 
 import torch
 
-from .base_depth_dataset import BaseDepthDataset, DepthFileNameMode
+from .base_depth_dataset import BaseDepthDataset, DatasetMode, DepthFileNameMode
 from .base_normals_dataset import BaseNormalsDataset
 
 
@@ -50,6 +50,9 @@ class NYUDepthDataset(BaseDepthDataset):
         )
 
         self.eigen_valid_mask = eigen_valid_mask
+        self.intrinsics = torch.tensor([[518.8579, 0, 325.58245],
+                                        [0, 519.46961, 253.73617],
+                                        [0, 0, 1]]).float()
 
     def _read_depth_file(self, rel_path):
         depth_in = self._read_image(rel_path)
@@ -68,6 +71,34 @@ class NYUDepthDataset(BaseDepthDataset):
             valid_mask = torch.logical_and(valid_mask, eval_mask)
 
         return valid_mask
+
+    def _get_data_item(self, index):
+        rgb_rel_path, depth_rel_path, filled_rel_path = self._get_data_path(index=index)
+
+        rasters = {}
+
+        # RGB data
+        rasters.update(self._load_rgb_data(rgb_rel_path=rgb_rel_path))
+
+        # Depth data
+        if DatasetMode.RGB_ONLY != self.mode:
+            # load data
+            depth_data = self._load_depth_data(
+                depth_rel_path=depth_rel_path, filled_rel_path=filled_rel_path
+            )
+            rasters.update(depth_data)
+            # valid mask
+            rasters["valid_mask_raw"] = self._get_valid_mask(
+                rasters["depth_raw_linear"]
+            ).clone()
+            rasters["valid_mask_filled"] = self._get_valid_mask(
+                rasters["depth_filled_linear"]
+            ).clone()
+
+        other = {"index": index, "rgb_relative_path": rgb_rel_path, 'intrinsics': self.intrinsics}
+
+        return rasters, other
+
 
 
 class NYUNormalsDataset(BaseNormalsDataset):
