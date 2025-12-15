@@ -7,6 +7,7 @@ import torch.nn.functional as F
 import cv2
 import random
 from ppd_sharpdepth.ppd.utils.timesteps import Timesteps
+from ppd_sharpdepth.sharpdepth.util.image_util import colorize_depth_maps, chw2hwc
 from ppd_sharpdepth.ppd.utils.schedule import LinearSchedule
 from ppd_sharpdepth.ppd.utils.sampler import EulerSampler
 from ppd_sharpdepth.ppd.utils.transform import image2tensor, resize_1024, resize_1024_crop, resize_keep_aspect
@@ -91,11 +92,52 @@ class PixelPerfectDepth(ModelMixin, ConfigMixin):
         semantics = self.semantics_prompt(image_rgb_1chw)
         cond = image_rgb_1chw - 0.5
         latent = torch.randn(size=[cond.shape[0], 1, cond.shape[2], cond.shape[3]]).to(self.device)
+
+        depth_sequence = []
+
+        depth_sequence.append(latent.cpu().numpy())
         
         for timestep in self.sampling_timesteps:
             input = torch.cat([latent, cond], dim=1)
             pred = self.dit(x=input, semantics=semantics, timestep=timestep)
             latent = self.sampler.step(pred=pred, x_t=latent, t=timestep)
+            depth_sequence.append(latent.cpu().numpy())
+        
+        if os.environ.get("EXPORT_GIF", "0") == "1":
+            
+            final_depth = depth_sequence[-1]
+            vmin = float(final_depth.min())
+            vmax = float(final_depth.max())
+            
+            def colorize_internal(value: np.ndarray, vmin: float = None, vmax: float = None, cmap: str = "magma_r"):
+                colored = colorize_depth_maps(value.squeeze(0), vmin, vmax, cmap)
+                colored = (colored * 255).astype(np.uint8)
+                colored_hwc = chw2hwc(colored.squeeze(0))
+                return Image.fromarray(colored_hwc)
+            
+            # let's interpolate between them!
+            num_frames = len(depth_sequence)
+            interpolated_frames = []
+            for i in range(num_frames - 1):
+                prev_frame = depth_sequence[i]
+                next_frame = depth_sequence[i + 1]
+                interpolation_levels = torch.linspace(0, 1, 5)
+                interpolated_frames.append(prev_frame)
+                for t in interpolation_levels:
+                    interpolated_frame = prev_frame * (1 - t.item()) + next_frame * t.item()
+                    interpolated_frames.append(interpolated_frame)
+            for i in range(10):
+                interpolated_frames.append(next_frame)
+                
+            # let's save it as a gif!
+            images = [colorize_internal(frame, vmin=vmin, vmax=vmax) for frame in interpolated_frames]
+            images[0].save("/tmp/depth_sequence.gif", save_all=True, append_images=images[1:], duration=10, loop=0)
+
+            
+            # # Save each step as /tmp/0_depth.jpg, /tmp/1_depth.jpg, etc.
+            # for i, depth in enumerate(depth_sequence):
+            #     img = colorize_internal(depth, vmin=vmin, vmax=vmax)
+            #     img.save(f"/tmp/{i}_depth.jpg")
 
         return latent + 0.5
 
