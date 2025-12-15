@@ -69,6 +69,22 @@ if __name__ == "__main__":
         print(f"Pushing trained checkpoint in local folder {local_folder_name} to remote ppd_student_controlnet/ subfolder in a new branch {branch_name} of andrew-healey/sharpdepth")
         input("Press Enter to continue: ")
 
+        try:
+            branch = create_branch(repo_id="andrew-healey/sharpdepth", branch=branch_name,revision="main")
+        except:
+            pass
+        try:
+            # rm -rf ppd_student on the branch
+            delete_folder(repo_id="andrew-healey/sharpdepth", path_in_repo="ppd_student_controlnet", revision=branch_name)
+        except:
+            pass
+        upload_folder(repo_id="andrew-healey/sharpdepth", folder_path=local_folder_name, path_in_repo="ppd_student_controlnet", revision=branch_name)
+    elif sys.argv[1] == "push_trained_checkpoint_controlnet":
+        branch_name = sys.argv[2]
+        local_folder_name = sys.argv[3]
+        print(f"Pushing trained checkpoint in local folder {local_folder_name} to remote ppd_student_controlnet/ subfolder in a new branch {branch_name} of andrew-healey/sharpdepth")
+        input("Press Enter to continue: ")
+
         branch = create_branch(repo_id="andrew-healey/sharpdepth", branch=branch_name,revision="main")
         # rm -rf ppd_student on the branch
         delete_folder(repo_id="andrew-healey/sharpdepth", path_in_repo="ppd_student_controlnet", revision=branch_name)
