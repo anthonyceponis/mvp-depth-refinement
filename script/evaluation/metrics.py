@@ -1,6 +1,7 @@
 import numpy as np
 import cv2 as cv
 from ppd_sharpdepth.ppd.utils.depth2pcd import depth2pcd
+from ppd_sharpdepth.sharpdepth.util.alignment import align_depth_least_square
 
 def auto_canny_depth_otsu(depth_map, apertureSize=3, L2gradient=False, dilate_kernel=0, low_frac=0.5):
     """
@@ -184,18 +185,29 @@ def dbe_completeness(predicted: np.ndarray, ground: np.ndarray, valid_mask: np.n
     return dbe_comp, predicted_edges, ground_edges
 
 def ppd_metric(pred_depth: np.ndarray, gt_depth: np.ndarray, intrinsic: np.ndarray):
+
+    least_squares_pred_depth, _, _ = align_depth_least_square(
+        gt_arr=gt_depth,
+        pred_arr=pred_depth,
+        valid_mask_arr=np.ones_like(pred_depth,dtype=np.bool),
+        return_scale_shift=True,
+        max_resolution=None,
+    )
+
     dilate_kernel=5 # width of region around edges.
     ground_edges = auto_canny_depth_otsu(gt_depth, dilate_kernel=dilate_kernel)
 
     ground_edges = ground_edges.reshape(-1).astype(bool) # flatten and cast.
 
-    pred_point_cloud = depth2pcd(pred_depth, intrinsic, ret_pcd=True, input_mask=ground_edges)
+    pred_point_cloud = depth2pcd(least_squares_pred_depth, intrinsic, ret_pcd=True, input_mask=ground_edges)
     gt_point_cloud = depth2pcd(gt_depth, intrinsic, ret_pcd=True, input_mask=ground_edges)
 
     d1 = np.asarray(gt_point_cloud.compute_point_cloud_distance(pred_point_cloud))
     d2 = np.asarray(pred_point_cloud.compute_point_cloud_distance(gt_point_cloud))
 
-    chamfer_dist = np.mean(d1) + np.mean(d2)
+    scene_scale = (gt_depth.max() - gt_depth.min())
+
+    chamfer_dist = (np.mean(d1) + np.mean(d2)) / scene_scale
 
     return chamfer_dist
 
