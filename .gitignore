@@ -12,3 +12,5 @@ __pycache__
 /ppd_sharpdepth/patchrefiner/checkpoints/download.zip
 nohup.out
 wget-log*
+script/tinkering/
+work_dir*
