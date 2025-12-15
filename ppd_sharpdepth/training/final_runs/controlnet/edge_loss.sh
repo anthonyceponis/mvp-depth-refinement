@@ -14,12 +14,13 @@ gradient_accumulation_steps=$((macrobatch_size / num_gpus))
 # to resume:
 # --learning_rate=1e-6 --student_ckpt_dir_revision reverse-simple-transformation
 
+    # --student_ckpt_dir_revision reverse-simple-transformation \
 accelerate launch --num_processes $num_gpus ppd_sharpdepth/training/train.py \
     --sds_loss_weight 0.1 \
     --depth_weight 0.4 \
     --base_ckpt_dir andrew-healey/sharpdepth \
     --student_ckpt_dir andrew-healey/sharpdepth \
-    --student_ckpt_dir_revision reverse-simple-transformation \
+    --student_ckpt_dir_revision trained/edge_loss/checkpoint-2500 \
     --add_datetime_prefix \
     --report_to wandb \
     --mixed_precision bf16 \
@@ -38,7 +39,7 @@ accelerate launch --num_processes $num_gpus ppd_sharpdepth/training/train.py \
     --use_ema \
     --base_data_dir "$WORKSPACE_DIR/data/" \
     --config "$WORKSPACE_DIR/config/train_marigold_depth.yaml" \
-    --output_dir "$WORKSPACE_DIR/train_output_edge_loss/" \
+    --output_dir "$WORKSPACE_DIR/train_output_edge_loss_1/" \
     --base_model zoedepth \
     --denoiser pixel_perfect_depth_controlnet \
     --use_conditioning_probability 0.8 \

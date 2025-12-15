@@ -20,6 +20,7 @@ accelerate launch --num_processes $num_gpus ppd_sharpdepth/training/train.py \
     --depth_weight 0.4 \
     --base_ckpt_dir andrew-healey/sharpdepth \
     --student_ckpt_dir andrew-healey/sharpdepth \
+    --student_ckpt_dir_revision trained/no_synthetic_data/checkpoint-2500 \
     --add_datetime_prefix \
     --report_to wandb \
     --mixed_precision bf16 \
@@ -38,7 +39,7 @@ accelerate launch --num_processes $num_gpus ppd_sharpdepth/training/train.py \
     --use_ema \
     --base_data_dir "$WORKSPACE_DIR/data/" \
     --config "$WORKSPACE_DIR/config/train_marigold_depth.yaml" \
-    --output_dir "$WORKSPACE_DIR/train_output_no_synthetic_data/" \
+    --output_dir "$WORKSPACE_DIR/train_output_no_synthetic_data_1/" \
     --base_model zoedepth \
     --denoiser pixel_perfect_depth_controlnet \
     --use_conditioning_probability 0.8 \

@@ -25,7 +25,7 @@ accelerate launch --num_processes $num_gpus ppd_sharpdepth/training/train.py \
     --tracker_project_name ppd_sharpdepth_train \
     --wandb_name "sds_0" \
     --set_grads_to_none \
-    --checkpointing_steps 500 \
+    --checkpointing_steps 1000 \
     --validation_steps 200 \
     --train_batch_size 1 \
     --gradient_accumulation_steps $gradient_accumulation_steps \
@@ -33,7 +33,7 @@ accelerate launch --num_processes $num_gpus ppd_sharpdepth/training/train.py \
     --use_ema \
     --base_data_dir "$WORKSPACE_DIR/data/" \
     --config "$WORKSPACE_DIR/config/train_marigold_depth.yaml" \
-    --output_dir "$WORKSPACE_DIR/train_output/" \
+    --output_dir "$WORKSPACE_DIR/train_output_sds_0/" \
     --base_model zoedepth \
     --denoiser pixel_perfect_depth \
     --use_conditioning_probability 0.8 \

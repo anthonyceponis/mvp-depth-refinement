@@ -10,7 +10,7 @@ gradient_accumulation_steps=$((macrobatch_size / num_gpus))
     # --student_ckpt_dir_revision blurred \
     # --student_ckpt_dir_revision identity_no_sds \
 accelerate launch --num_processes $num_gpus ppd_sharpdepth/training/train.py \
-    --sds_loss_weight 1.0 \
+    --sds_loss_weight 10.0 \
     --depth_weight 1.6 \
     --base_ckpt_dir andrew-healey/sharpdepth \
     --student_ckpt_dir andrew-healey/sharpdepth \
@@ -23,7 +23,7 @@ accelerate launch --num_processes $num_gpus ppd_sharpdepth/training/train.py \
     --lr_scheduler cosine \
     --lr_warmup_steps 100 \
     --tracker_project_name ppd_sharpdepth_train \
-    --wandb_name "sds_1.0" \
+    --wandb_name "sds_10.0" \
     --set_grads_to_none \
     --checkpointing_steps 1000 \
     --validation_steps 200 \
@@ -33,7 +33,7 @@ accelerate launch --num_processes $num_gpus ppd_sharpdepth/training/train.py \
     --use_ema \
     --base_data_dir "$WORKSPACE_DIR/data/" \
     --config "$WORKSPACE_DIR/config/train_marigold_depth.yaml" \
-    --output_dir "$WORKSPACE_DIR/train_output_sds_1.0/" \
+    --output_dir "$WORKSPACE_DIR/train_output_sds_10.0/" \
     --base_model zoedepth \
     --denoiser pixel_perfect_depth \
     --use_conditioning_probability 0.8 \
