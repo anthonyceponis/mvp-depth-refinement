@@ -480,11 +480,8 @@ def get_depth_estimator_fn(
         
         case ModelArchitecture.zoedepth:
             
-            try:
-                zoedepth_n = torch.hub.load("isl-org/ZoeDepth", "ZoeD_N", pretrained=True)
-            except Exception as e:
-                torch.hub.help("intel-isl/MiDaS", "DPT_BEiT_L_384", force_reload=False)
-                zoedepth_n = torch.hub.load("isl-org/ZoeDepth", "ZoeD_N", pretrained=True)
+            zoedepth_path = os.path.join(os.path.dirname(__file__), "..","submodules","ZoeDepth")
+            zoedepth_n = torch.hub.load(zoedepth_path, "ZoeD_N", pretrained=True, source="local")
             zoedepth_n = zoedepth_n.to(device).eval()
 
             @torch.autocast(device_type=device.type, dtype=float_dtype)

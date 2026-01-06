@@ -20,3 +20,9 @@
 [submodule "submodules/PatchRefiner"]
 	path = submodules/PatchRefiner
 	url = git@github.com:OHo315/PatchRefiner
+[submodule "submodules/MiDaS"]
+	path = submodules/MiDaS
+	url = https://github.com/andrew-healey/MiDaS
+[submodule "submodules/ZoeDepth"]
+	path = submodules/ZoeDepth
+	url = https://github.com/andrew-healey/ZoeDepth
