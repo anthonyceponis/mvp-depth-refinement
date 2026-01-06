@@ -75,6 +75,56 @@ import cv2
 
 logger = get_logger(__name__)
 
+import torch
+import torch.nn.functional as F
+
+def depth_to_normals(depth: torch.Tensor, K: torch.Tensor):
+    """
+    depth: (B,1,H,W)
+    K:     (B,3,3) or (3,3)
+    returns (B,3,H,W) normals
+    """
+    B, _, H, W = depth.shape
+
+    # handle K batch or single
+    if K.dim() == 2:
+        K = K.unsqueeze(0).expand(B, -1, -1)
+
+    fx = K[:, 0, 0].view(B,1,1,1)
+    fy = K[:, 1, 1].view(B,1,1,1)
+    cx = K[:, 0, 2].view(B,1,1,1)
+    cy = K[:, 1, 2].view(B,1,1,1)
+
+    # pixel grid
+    y, x = torch.meshgrid(
+        torch.arange(H, device=depth.device),
+        torch.arange(W, device=depth.device),
+        indexing="ij"
+    )
+    x = x.float()[None, None]
+    y = y.float()[None, None]
+
+    # backproject
+    X = (x - cx) * depth / fx
+    Y = (y - cy) * depth / fy
+    Z = depth
+
+    # gradients
+    def dx(t): return F.pad(t[..., 1:] - t[..., :-1], (1,0,0,0))
+    def dy(t): return F.pad(t[..., 1:, :] - t[..., :-1, :], (0,0,1,0))
+
+    Xx, Xy = dx(X), dy(X)
+    Yx, Yy = dx(Y), dy(Y)
+    Zx, Zy = dx(Z), dy(Z)
+
+    tx = torch.cat([Xx, Yx, Zx], dim=1)
+    ty = torch.cat([Xy, Yy, Zy], dim=1)
+
+    normals = torch.cross(tx, ty, dim=1)
+    normals = F.normalize(normals, dim=1)
+
+    return normals
+
 
 @torch.no_grad()
 def encode_image(vae, rgb):
@@ -345,6 +395,12 @@ if "__main__" == __name__:
         help="Depth loss weight.",
     )
     parser.add_argument(
+        "--normal_loss_weight",
+        type=float,
+        default=0.2,
+        help="Depth loss weight.",
+    )
+    parser.add_argument(
         "--scale_lr",
         action="store_true",
         default=False,
@@ -481,6 +537,8 @@ if "__main__" == __name__:
     parser.add_argument("--edge_loss_blur_radius_px", type=int, default=8, help="Radius in pixels for the edge loss blur")
     parser.add_argument("--use_edge_loss_as_sds_loss", action="store_true", help="Whether to use the edge loss as the SDS loss")
     parser.add_argument("--use_sharpdepth_style_losses", action="store_true", help="Whether to use the sharpdepth style losses")
+    parser.add_argument("--use_normal_loss", action="store_true", help="Whether to use surface normal consistency loss.")
+    parser.add_argument("--use_public_pretrained_sharpdepth_weights", action="store_true", help="Whether to use surface normal consistency loss.")
 
     args = parser.parse_args()
 
@@ -1096,13 +1154,13 @@ if "__main__" == __name__:
                 np.random.seed(row_idx.item())
                 random.seed(row_idx.item())
 
-                #desired_batch_keys = {"rgb_int", "depth_raw_linear", "valid_mask_raw"}
+                desired_batch_keys = {"rgb_int", "depth_raw_linear", "valid_mask_raw"}
                 desired_batch_keys = {"rgb_int"}
                 assert set(batch.keys()) >= desired_batch_keys, f"Invalid batch keys: {set(batch.keys())}. expected it to contain at least these keys: {desired_batch_keys}"
                 batch = { key: batch[key] for key in desired_batch_keys }
 
                 # resize the image if using ppd!
-
+                
                 rgb = batch["rgb_int"].to(weight_dtype) / 255.0
 
                 assert sharpdepth_kind in [SharpDepthKind.LOTUS, SharpDepthKind.PIXEL_PERFECT_DEPTH, SharpDepthKind.PIXEL_PERFECT_DEPTH_CONTROLNET], f"Invalid sharpdepth kind: {sharpdepth_kind}"
@@ -1121,7 +1179,6 @@ if "__main__" == __name__:
                 }
                 batch = batch_resized
                 rgb = rgb_float_1chw_resized
-
                 ## UniDepth ##
 
                 with torch.no_grad():
@@ -1138,7 +1195,7 @@ if "__main__" == __name__:
                 normalize_obj = depth_normalizer(disp_base)
                 norm_base_depth = normalize_obj["norm_depth"].to(dtype=weight_dtype)
                 norm_base_depth_unpadded = norm_base_depth[:,:,:norm_base_depth.shape[2]-padding[0],:norm_base_depth.shape[3]-padding[1]]
-
+ 
                 if sharpdepth_kind == SharpDepthKind.LOTUS:
 
                     assert args.blur_unidepth_output_ratio == 1, "Blurring the unidepth output is not supported for Lotus"
@@ -1266,7 +1323,7 @@ if "__main__" == __name__:
                     depth_loss = l1_loss(
                         pred_depth_unpadded * 0.5 + 0.5, norm_base_depth_unpadded * 0.5 + 0.5, l1_error_unpadded
                     )
-                    depth_mse = F.mse_loss(pred_depth_unpadded * 0.5 + 0.5, norm_base_depth_unpadded * 0.5 + 0.5, reduction="mean")
+                    depth_mse = F.mse_loss(pred_depth_unpadded * 0.5 + 0.5, norm_base_depth_unpadded * 0.5 + 0.5, reduction="mean") 
 
                     # let's also compare our final predicted depth map to a simple baseline: least-squares alignment with the base depth map
 
@@ -1297,6 +1354,23 @@ if "__main__" == __name__:
                             max_resolution=None,
                         )
                         final_aligned_depth = torch.from_numpy(final_aligned_depth).to(device)
+
+                        if args.use_normal_loss:
+                            intrinsics = og_batch["intrinsics"].to(device)
+
+                            final_aligned_metric_depth, _, _ = align_depth_least_square(
+                                gt_arr=(disp_base_11hw).detach().float().cpu().numpy(),
+                                pred_arr=pred_depth.detach().float().cpu().numpy(),
+                                valid_mask_arr=torch.ones_like(l1_error_unpadded).detach().bool().cpu().numpy(),
+                                return_scale_shift=True,
+                                max_resolution=None,
+                            )
+                            final_aligned_metric_depth = torch.from_numpy(final_aligned_metric_depth).to(device)
+
+                            base_normal_map = depth_to_normals(disp_base_11hw.to(device), intrinsics)
+                            pred_normal_map = depth_to_normals(final_aligned_metric_depth, intrinsics)
+                            normal_loss = l1_loss(base_normal_map, pred_normal_map, torch.ones(pred_normal_map.shape, dtype=pred_normal_map.dtype, device=pred_normal_map.device))
+
 
                         final_aligned_depth_loss = l1_loss(
                             final_aligned_depth, norm_base_depth_unpadded * 0.5 + 0.5, l1_error_unpadded
@@ -1367,6 +1441,9 @@ if "__main__" == __name__:
 
                 
                 elif sharpdepth_kind == SharpDepthKind.PIXEL_PERFECT_DEPTH:
+
+                    if args.use_normal_loss:
+                        raise NotImplementedError("Normal consistency loss not supported for ppd sharpdepth.")
 
                     norm_base_depth = norm_base_depth * 0.5 + 0.5
 
@@ -1563,7 +1640,7 @@ if "__main__" == __name__:
                     else:
                         depth_loss = l1_loss(
                             maybe_blur_depth_loss(student_pred_depth_latent + 0.5), maybe_blur_depth_loss(target_latent + 0.5), torch.ones_like(l1_error)
-                        )
+                        ) 
 
                     depth_mse = F.mse_loss(student_pred_depth_latent + 0.5, target_latent + 0.5, reduction="mean")
 
@@ -1624,6 +1701,8 @@ if "__main__" == __name__:
                             initial_depth_mse = F.mse_loss(frozen_pred_depth_aligned, target_latent + 0.5, reduction="mean")
 
                 elif sharpdepth_kind == SharpDepthKind.PIXEL_PERFECT_DEPTH_CONTROLNET:
+                    if args.use_normal_loss:
+                        raise NotImplementedError("Normal consistency loss not supported for ppd sharpdepth.")
                     # infer the frozen ppd on the image
                     # apply some arb. rescaling to the ppd depth map, e.g. linear or log(linear(exp() + 1)) - 1
                     # and blur it
@@ -1751,12 +1830,12 @@ if "__main__" == __name__:
                     high_frequency_initial_depth = frozen_pred_depth - blur(frozen_pred_depth, args.edge_loss_blur_radius_px)
                     high_frequency_student_pred_depth = student_pred_depth - blur(student_pred_depth, args.edge_loss_blur_radius_px)
                     is_near_edge_mask = get_dilated_edge_mask(student_pred_depth, distance_threshold_px=args.edge_loss_blur_radius_px)
-
+ 
                     if conditioning_kind == "synthetic":
                         depth_loss = F.mse_loss(student_pred_depth, target_depth, reduction="mean")
                         edge_loss = F.mse_loss(high_frequency_initial_depth * is_near_edge_mask, high_frequency_student_pred_depth * is_near_edge_mask, reduction="mean").to(weight_dtype) / (is_near_edge_mask.float().mean() + 1e-6)
                         sds_loss = edge_loss
-
+ 
                     elif conditioning_kind == "cond":
 
                         # sharpdepth-style losses! l1-weighted depth map and sds loss
@@ -1898,7 +1977,17 @@ if "__main__" == __name__:
 
                 # ------------------------------------------------------------------
                 # Optimization
-                loss = sds_loss * args.sds_loss_weight + depth_loss * args.depth_weight
+                loss_weight_sum = args.sds_loss_weight + args.depth_weight 
+                if args.use_normal_loss:
+                    loss_weight_sum += args.normal_loss_weight
+                    args.normal_loss_weight /= loss_weight_sum
+                args.sds_loss_weight /= loss_weight_sum
+                args.depth_weight /= loss_weight_sum
+
+                loss = sds_loss * args.sds_loss_weight + depth_loss * args.depth_weight 
+                if args.use_normal_loss:
+                    loss += normal_loss * args.normal_loss_weight
+
                 loss_accum += loss.detach()
                 accelerator.backward(loss)
                 if accelerator.sync_gradients:
@@ -2172,6 +2261,7 @@ if "__main__" == __name__:
                         "total": (loss.detach(), torch.tensor(1,device=loss.device)),
                         "sds": (sds_loss.detach(), torch.tensor(1,device=sds_loss.device)),
                         "depth": (depth_loss.detach(), torch.tensor(1,device=depth_loss.device)),
+                        "normal": (normal_loss.detach() if normal_loss is not None else torch.tensor(0,device=device), torch.tensor(1,device=normal_loss.device) if normal_loss is not None else torch.tensor(0,device=device)),
                         "depth_mse": (depth_mse.detach(), torch.tensor(1,device=depth_mse.device)),
                         "depth_aligned_mse": (final_aligned_depth_mse.detach(), torch.tensor(1,device=final_aligned_depth_mse.device)),
                         "initial_depth": (initial_depth_loss.detach() if initial_depth_loss is not None else torch.tensor(0,device=device), torch.tensor(1,device=initial_depth_loss.device) if initial_depth_loss is not None else torch.tensor(0,device=device)),
@@ -2182,6 +2272,7 @@ if "__main__" == __name__:
                         "total": (loss.detach(), torch.tensor(1,device=loss.device)),
                         "sds": (sds_loss.detach(), torch.tensor(1,device=sds_loss.device)),
                         "depth": (depth_loss.detach(), torch.tensor(1,device=depth_loss.device)),
+                        "normal": (normal_loss.detach() if normal_loss is not None else torch.tensor(0,device=device), torch.tensor(1,device=normal_loss.device) if normal_loss is not None else torch.tensor(0,device=device)),
                         "depth_mse": (depth_mse.detach(), torch.tensor(1,device=depth_mse.device)),
                         "depth_aligned_mse": (final_aligned_depth_mse.detach(), torch.tensor(1,device=final_aligned_depth_mse.device)),
                         "initial_depth": (initial_depth_loss.detach() if initial_depth_loss is not None else torch.tensor(0,device=device), torch.tensor(1,device=initial_depth_loss.device) if initial_depth_loss is not None else torch.tensor(0,device=device)),

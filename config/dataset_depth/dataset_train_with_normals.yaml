@@ -1,0 +1,40 @@
+dataset:
+  train:
+    name: concat
+    dataset_list:
+      #- name: nyu_v2
+      #  disp_name: nyu_v2
+      #  dir: nyu_v2_processed/
+      #  filenames: data_split/nyu_depth/labeled/filename_list_train.txt
+      #  eigen_valid_mask: true
+      #  resize_to_hw:
+      #  - 480
+      #  - 640 
+    - name: hypersim
+      disp_name: hypersim
+      dir: hypersim_processed/train/
+      filenames: data_split/hypersim_depth/hypersim_train_filename_list.txt
+      resize_to_hw:
+      - 480
+      - 640 
+    # - name: waymo
+    #   disp_name: waymo
+    #   dir: waymo_preprocess/
+    #   filenames: data_split/waymo_depth/waymo_train_filename_list.txt
+    #   resize_to_hw:
+    #   - 480
+    #   - 640 
+    #- name: diode_indoor
+    #  disp_name: diode_indoor
+    #  dir: diode/
+    #  filenames: data_split/diode_indoor_depth/diode_indoor_train_filename_list.txt
+    #  resize_to_hw:
+    #  - 480
+    #  - 640 
+    #- name: arkitscenes
+    #  disp_name: arkitscenes
+    #  dir: arkitscenes_processed/
+    #  filenames: data_split/arkitscenes_depth/arkitscenes_train_filename_list.txt
+    #  resize_to_hw:
+    #  - 480
+    #  - 640 

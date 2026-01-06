@@ -13,15 +13,15 @@ cat set-env.sh >> ~/.bashrc
 
 mkdir -p $BASE_DATA_DIR
 
-echo "Installing top-level dependencies..."
+echo "installing top-level dependencies..."
 
 pip install -qr requirements+++.txt -r requirements++.txt -r requirements+.txt -r requirements.txt
 
-echo "Done installing top-level dependencies"
+echo "done installing top-level dependencies."
 
 pushd submodules/UniDepth > /dev/null
 
-echo "Installing UniDepth in top-level environment"
+echo "installing UniDepth in top-level environment."
 pip install -v -e . --no-deps
 
 if ! python -c "import torch; import KNN" &>/dev/null; then
@@ -31,3 +31,5 @@ if ! python -c "import torch; import KNN" &>/dev/null; then
 fi
 
 popd > /dev/null
+
+echo "setup complete!"

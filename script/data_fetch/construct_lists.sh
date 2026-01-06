@@ -21,20 +21,20 @@ sed -i "s|$WAYMO_DATADIR/||g" $WAYMO_TXT_FILEPATH
 
 HYPERSIM_TXT_DIRPATH="$BASE_DATA_DIR/../data_split/hypersim_depth"
 
-# for SPLIT in train val test; do
-# 	HYPERSIM_TXT_FILEPATH="$HYPERSIM_TXT_DIRPATH/hypersim_${SPLIT}_filename_list.txt"
-# 	HYPERSIM_DATADIR="$BASE_DATA_DIR/hypersim_processed/$SPLIT"
-# 	mkdir -p $HYPERSIM_TXT_DIRPATH
-# 	tmp1=$(mktemp)
-# 	tmp2=$(mktemp)
-# 	find $HYPERSIM_DATADIR -type f -name "rgb*" | sort > $tmp1
-# 	find $HYPERSIM_DATADIR -type f -name "depth*" | sort > $tmp2
-# 	paste -d ' ' $tmp1 $tmp2 > $HYPERSIM_TXT_FILEPATH
-# 	sed -i "s|$HYPERSIM_DATADIR/||g" $HYPERSIM_TXT_FILEPATH
-# 	rm $tmp1
-# 	rm $tmp2
-# 	python script/data_fetch/remove_invalid_rgb_images.py --txt_file $HYPERSIM_TXT_FILEPATH --datadir $HYPERSIM_DATADIR
-# done
+for SPLIT in train val test; do
+	HYPERSIM_TXT_FILEPATH="$HYPERSIM_TXT_DIRPATH/hypersim_${SPLIT}_filename_list.txt"
+	HYPERSIM_DATADIR="$BASE_DATA_DIR/hypersim_processed/$SPLIT"
+	mkdir -p $HYPERSIM_TXT_DIRPATH
+	tmp1=$(mktemp)
+	tmp2=$(mktemp)
+	find $HYPERSIM_DATADIR -type f -name "rgb*" | sort > $tmp1
+	find $HYPERSIM_DATADIR -type f -name "depth*" | sort > $tmp2
+	paste -d ' ' $tmp1 $tmp2 > $HYPERSIM_TXT_FILEPATH
+	sed -i "s|$HYPERSIM_DATADIR/||g" $HYPERSIM_TXT_FILEPATH
+	rm $tmp1
+	rm $tmp2
+	python script/data_fetch/remove_invalid_rgb_images.py --txt_file $HYPERSIM_TXT_FILEPATH --datadir $HYPERSIM_DATADIR
+done
 
 
 

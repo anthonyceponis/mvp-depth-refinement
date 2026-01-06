@@ -126,7 +126,7 @@ if "__main__" == __name__:
 
         with torch.no_grad():
             depth_np_11hw = model_infer_fn(rgb_raw_11chw, MarigoldPreProcessor)
-        depth_np_11hw = depth_np_11hw.cpu().numpy()
+        depth_np_11hw = depth_np_11hw.cpu().detach().numpy()
         save_path = output_dir / rgb_name
         os.makedirs(save_path.parent, exist_ok=True)
         np.save(save_path, depth_np_11hw)
