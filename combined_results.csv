@@ -1,0 +1,11 @@
+model,base_model,nyu_abs_rel,nyu_abs_rel_se,nyu_rmse,nyu_rmse_se,middlebury_abs_rel,middlebury_abs_rel_se,middlebury_rmse,middlebury_rmse_se,hypersim_abs_rel,hypersim_abs_rel_se,hypersim_rmse,hypersim_rmse_se,hypersim_ppd,hypersim_ppd_se
+zoedepth,zoedepth,0.0783,0.0025,0.3534,0.0132,0.4767,0.0438,3.4431,0.5388,0.3172,0.0143,3.9489,0.3975,17.13,1.37
+unidepth,unidepth,0.0338,0.0012,0.1892,0.0078,0.3649,0.0507,2.9729,0.5275,0.2695,0.0166,2.8767,0.3156,17.62,1.63
+sharpdepth_ppd_controlnet_zoedepth,zoedepth,0.0831,0.0031,0.3830,0.0158,0.4706,0.0453,3.4269,0.5444,0.2986,0.0343,4.1120,0.9132,11.71,1.62
+sharpdepth_ppd_controlnet_unidepth,unidepth,0.0459,0.0018,0.2450,0.0106,0.3621,0.0484,2.9204,0.5131,0.2181,0.0212,2.5898,0.6341,11.88,2.18
+patchrefiner,zoedepth,0.0927,0.0033,0.5399,0.0284,0.5126,0.0475,3.7288,0.5698,0.3095,0.0321,3.7384,0.6968,13.58,1.23
+pixelperfectdepth_unidepth,unidepth,0.0446,0.0016,0.2497,0.0109,0.3636,0.0484,2.9246,0.5138,0.2191,0.0209,2.6256,0.6455,10.68,1.53
+pixelperfectdepth_zoedepth,zoedepth,0.0806,0.0026,0.3637,0.0134,0.4711,0.0457,3.4310,0.5492,0.3023,0.0347,4.1506,0.9205,10.76,1.50
+sharpdepth_lotus_zoedepth,zoedepth,0.1010,0.0036,0.4474,0.0171,0.4731,0.0420,3.4034,0.5291,0.3092,0.0326,4.1738,0.9143,17.18,2.39
+sharpdepth_lotus_unidepth,unidepth,0.0756,0.0035,0.3551,0.0171,0.3669,0.0473,2.9501,0.5135,0.2425,0.0229,2.7225,0.6466,18.39,3.08
+
