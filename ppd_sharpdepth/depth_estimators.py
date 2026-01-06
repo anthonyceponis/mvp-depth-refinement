@@ -173,7 +173,15 @@ def get_depth_estimator_fn(
             frozen_unet = frozen_unet.to(device, dtype=float_dtype).eval()
             frozen_unet.requires_grad_(False)
 
-            student_unet = PixelPerfectDepth.from_pretrained(checkpoint_filepath, subfolder="ppd_student")
+            hf_url_re = fr"hf://([^\/]+)/([^\/]+):([^\/]+)" # hf://owner/model:revision
+            import re
+            hf_match = re.match(hf_url_re, checkpoint_filepath)
+            if hf_match:
+                owner, model, revision = hf_match.groups()
+                student_unet = PixelPerfectDepth.from_pretrained(f"{owner}/{model}", subfolder="ppd_student", revision=revision)
+            else:
+                student_unet = PixelPerfectDepth.from_pretrained(checkpoint_filepath, subfolder="ppd_student")
+
             student_unet = student_unet.to(device, dtype=float_dtype).eval()
             student_unet.requires_grad_(False)
 
@@ -232,7 +240,15 @@ def get_depth_estimator_fn(
             frozen_unet = frozen_unet.to(device, dtype=float_dtype).eval()
             frozen_unet.requires_grad_(False)
 
-            student_unet = PixelPerfectDepth.from_pretrained(checkpoint_filepath, subfolder="ppd_student_controlnet")
+            hf_url_re = fr"hf://([^\/]+)/([^\/]+):([^\/]+)" # hf://owner/model:revision
+            import re
+            hf_match = re.match(hf_url_re, checkpoint_filepath)
+            if hf_match:
+                owner, model, revision = hf_match.groups()
+                student_unet = PixelPerfectDepth.from_pretrained(f"{owner}/{model}", subfolder="ppd_student_controlnet", revision=revision)
+            else:
+                student_unet = PixelPerfectDepth.from_pretrained(checkpoint_filepath, subfolder="ppd_student_controlnet")
+
             student_unet = student_unet.to(device, dtype=float_dtype).eval()
             student_unet.requires_grad_(False)
 
