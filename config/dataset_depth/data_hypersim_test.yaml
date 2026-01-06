@@ -1,4 +1,4 @@
 name: hypersim_depth
 disp_name: hypersim_depth
 dir: hypersim_processed/test
-filenames: data_split/hypersim_depth/hypersim_test_filename_list_smaller.txt
+filenames: data_split/hypersim_depth/hypersim_test_filename_list.txt
