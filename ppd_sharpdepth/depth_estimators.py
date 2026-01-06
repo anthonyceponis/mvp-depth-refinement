@@ -248,7 +248,7 @@ def get_depth_estimator_fn(
                 noise_aware_latent_noise_scale=0,
                 use_conditioning_for_initial_ppd=False,
                 initialize_ppd_from_timestep=None,
-                align_depth_least_square=False,
+                align_depth_least_square=True,
             )
             assert pipeline.default_processing_resolution == 768, f"default_processing_resolution = {pipeline.default_processing_resolution}, expected 768"
             assert pipeline.default_denoising_steps == 4, f"default_denoising_steps = {pipeline.default_denoising_steps}, expected 4"
