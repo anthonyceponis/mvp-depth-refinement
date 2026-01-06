@@ -430,6 +430,10 @@ class SharpDepthPipeline(DiffusionPipeline):
         valid_mask = (1 - pred_mask) > 0.5
         
         if self.align_depth_least_square:
+
+            valid_mask = np.zeros_like(base_pred, dtype=bool)
+            valid_mask[8:-8, 8:-8] = True
+
             final_pred, scale, shift = align_depth_least_square(
                     gt_arr=base_pred,
                     pred_arr=final_pred,
