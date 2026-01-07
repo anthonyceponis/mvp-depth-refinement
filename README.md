@@ -1,4 +1,10 @@
-# MVP-DEPTH-ESTIMATION-WITH-REFINEMENT
+# Depth refinement with diffusion model
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/anthonyceponis/mvp-depth-refinement/blob/main/demo.ipynb)
+
+We adapted the diffusion-based depth estimation model [Pixel-Perfect Depth]() to perform depth refinement.
+
+
 
 ## Setup 
 
