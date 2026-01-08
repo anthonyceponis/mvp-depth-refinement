@@ -109,6 +109,16 @@ def rmse(predicted: np.ndarray, ground: np.ndarray, valid_mask: np.ndarray):
 
     return rmse
 
+
+# rmse relative to ground truth depth map scale
+def rmse_rel(predicted: np.ndarray, ground: np.ndarray, valid_mask: np.ndarray):
+    assert predicted.shape == ground.shape, "Predicted and ground shapes must match"
+    error = predicted - ground
+    error[~valid_mask] = 0.0
+    rmse = (np.sum(error ** 2) / np.sum(valid_mask)) ** 0.5
+    gt_mean = np.sum(ground * valid_mask) / np.sum(valid_mask)
+    return rmse / gt_mean if gt_mean > 1e-6 else rmse
+
 def dbe_accuracy(predicted: np.ndarray, ground: np.ndarray, valid_mask: np.ndarray):
     """
     Parameters:

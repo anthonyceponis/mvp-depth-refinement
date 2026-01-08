@@ -15,7 +15,7 @@ import math
 from PIL import Image
 
 from ppd_sharpdepth.depth_estimators import ModelArchitecture 
-from script.evaluation.metrics import abs_rel, rmse, dbe_completeness, ppd_metric
+from script.evaluation.metrics import abs_rel, rmse, rmse_rel, dbe_completeness, ppd_metric
 
 def save_numpy_bitmap_as_png(bitmap_array: np.ndarray, file_path: str):
     
@@ -77,6 +77,7 @@ if __name__ == "__main__":
  
     abs_rel_values = []
     rmse_values = []
+    rmse_rel_values = []
     ppd_values = []
 
     # computing edge metric requires intrinsic data and high quality edges (from synthetic data), and hypersim is the only supported dataset which meets these requirements.
@@ -100,8 +101,10 @@ if __name__ == "__main__":
         
         img_abs_rel = abs_rel(depth_pred, depth_raw, valid_mask)
         img_rmse = rmse(depth_pred, depth_raw, valid_mask)
+        img_rmse_rel = rmse_rel(depth_pred, depth_raw, valid_mask)
         abs_rel_values.append(img_abs_rel)
         rmse_values.append(img_rmse)
+        rmse_rel_values.append(img_rmse_rel)
         
         ppd_score = None
         if with_edge_metric:
@@ -128,12 +131,16 @@ if __name__ == "__main__":
     
     abs_rel_arr = np.array(abs_rel_values)
     rmse_arr = np.array(rmse_values)
+    rmse_rel_arr = np.array(rmse_rel_values)
     
     abs_rel_mean = np.mean(abs_rel_arr)
     abs_rel_std_err = np.std(abs_rel_arr, ddof=1) / np.sqrt(len(abs_rel_arr))
     
     rmse_mean = np.mean(rmse_arr)
     rmse_std_err = np.std(rmse_arr, ddof=1) / np.sqrt(len(rmse_arr))
+    
+    rmse_rel_mean = np.mean(rmse_rel_arr)
+    rmse_rel_std_err = np.std(rmse_rel_arr, ddof=1) / np.sqrt(len(rmse_rel_arr))
     
     if ppd_values:
         ppd_arr = np.array(ppd_values)
@@ -153,7 +160,7 @@ if __name__ == "__main__":
     
     df = pd.read_csv(results_filepath)
 
-    for col in ["abs_rel_std_err", "rmse_std_err", "ppd_std_err"]:
+    for col in ["abs_rel_std_err", "rmse_std_err", "rmse_rel", "rmse_rel_std_err", "ppd_std_err"]:
         if col not in df.columns:
             df[col] = None
     
@@ -167,6 +174,8 @@ if __name__ == "__main__":
         "abs_rel_std_err": abs_rel_std_err,
         "rmse": rmse_mean,
         "rmse_std_err": rmse_std_err,
+        "rmse_rel": rmse_rel_mean,
+        "rmse_rel_std_err": rmse_rel_std_err,
         "ppd": ppd_mean,
         "ppd_std_err": ppd_std_err,
     }

@@ -1,0 +1,10 @@
+model,base_model,nyu_mse,nyu_mse_se,middlebury_mse,middlebury_mse_se,hypersim_mse,hypersim_mse_se
+edge_loss,zoedepth,0.104971,0.008941,0.052721,0.006845,0.127849,0.009763
+ppd_zoedepth,zoedepth,0.153370,0.014177,0.068989,0.008841,0.244370,0.019406
+sharpdepth_lotus_zoedepth,zoedepth,0.184505,0.019799,0.097462,0.017705,0.187352,0.015097
+sharpdepth_lotus_zoedepth_fixed,zoedepth,0.024119,0.003205,0.007567,0.001080,0.020079,0.002025
+patchrefiner,zoedepth,1.016993,0.223545,1.125649,0.384622,9.837964,1.617116
+edge_loss_unidepth,unidepth,0.103592,0.009243,0.056498,0.012556,0.672817,0.100305
+ppd_unidepth,unidepth,0.147954,0.014080,0.067762,0.015022,1.318922,0.217336
+sharpdepth_lotus_unidepth,unidepth,0.194551,0.018808,0.098924,0.023041,0.649646,0.086744
+sharpdepth_lotus_unidepth_fixed,unidepth,0.019682,0.002763,0.006721,0.001191,0.083178,0.015162
