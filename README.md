@@ -4,7 +4,7 @@
 
 We adapted the diffusion-based depth estimation model [Pixel-Perfect Depth]() to perform depth refinement.
 
-
+You can run our trained model using the Colab notebook linked above.
 
 ## Setup 
 
