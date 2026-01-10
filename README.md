@@ -21,3 +21,8 @@ All models are abstracted into a single function in `ppd_sharpdepth/depth_estima
 ## Evaluation
 
 See `eval.sh` for examples for how to run inference for a given dataset.
+
+
+## Architecture
+
+<img width="1168" height="1231" alt="image" src="https://github.com/user-attachments/assets/b058c442-84de-4878-bc22-db555d3aaa94" />
